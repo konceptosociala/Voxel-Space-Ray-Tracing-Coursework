@@ -1,0 +1,44 @@
+\documentclass[14pt,a4paper]{extreport}
+\input{config}
+
+\begin{document}
+    \pagenumbering{gobble}
+    \input{titlepage}
+    \input{individual_task}
+    \input{schedule}
+    
+    \tableofcontents
+    \newpage
+
+    \pagenumbering{arabic}
+    \setcounter{page}{1}
+    \chapter*{АНОТАЦІЯ}
+    \addcontentsline{toc}{chapter}{АНОТАЦІЯ}
+    
+    \chapter*{ВСТУП}
+    \addcontentsline{toc}{chapter}{ВСТУП}
+    
+    \chapter{АНАЛІЗ ПРЕДМЕТНОЇ ОБЛАСТІ\\ТА ПОСТАНОВКА ЗАДАЧІ}
+        \section{A}
+        \section{B}
+        \section{C}
+    
+    \chapter{МЕТОДИ ТА ОСОБЛИВОСТI РЕАЛIЗАЦIЇ ТРАСУВАННЯ У ВОКСЕЛЬНОМУ ПРОСТОРІ}
+        \section{A}
+        \section{B}
+        \section{C}
+    
+    \chapter{РЕАЛIЗАЦIЯ АЛГОРИТМУ ТРАСУВАННЯ ПРОМЕНIВ У ВОКСЕЛЬНОМУ ПРОСТОРI}
+        \section{A}
+        \section{B}
+        \section{C}
+    
+    \chapter*{ВИСНОВКИ}
+    \addcontentsline{toc}{chapter}{ВИСНОВКИ}
+    
+    \chapter*{СПИСОК ЛІТЕРАТУРИ}
+    \addcontentsline{toc}{chapter}{СПИСОК ЛІТЕРАТУРИ}
+    
+    \chapter*{ДОДАТКИ}
+    \addcontentsline{toc}{chapter}{ДОДАТКИ}
+\end{document}
