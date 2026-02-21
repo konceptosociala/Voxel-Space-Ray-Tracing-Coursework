@@ -1,0 +1,85 @@
+\newcommand{\rect}[5]{%
+    \fill[#5] ({(#1-1)*#3 + #4},0,{(#2-1)*#3}) rectangle
+              ({#1*#3 + #4},0,{#2*#3});
+    \draw[black] ({(#1-1)*#3 + #4},0,{(#2-1)*#3}) rectangle
+                 ({#1*#3 + #4},0,{#2*#3});
+}
+
+\begin{tikzpicture}[scale=0.7]
+    \foreach \x in {1,...,8} {
+        \foreach \y in {1,...,8} {
+            \rect{\x}{\y}{0.5}{0}{white}
+        }
+    }
+    \foreach \x in {1,...,4} {
+        \foreach \y in {1,...,4} {
+            \rect{\x-0.5}{\y}{1}{5}{white}
+        }
+    }
+    \foreach \x in {0,...,1} {
+        \foreach \y in {1,...,2} {
+            \rect{\x}{\y}{2}{11}{white}
+        }
+    }
+    % MIP 0
+    \rect{5}{1}{0.5}{0}{green};
+    \rect{5}{2}{0.5}{0}{green};
+    \rect{5}{3}{0.5}{0}{green};
+    \rect{5}{4}{0.5}{0}{green};
+    \rect{4}{4}{0.5}{0}{green};
+    \rect{3}{4}{0.5}{0}{green};
+    \rect{6}{4}{0.5}{0}{green};
+    \rect{7}{4}{0.5}{0}{green};
+    \rect{5}{6}{0.5}{0}{yellow};
+    \rect{4}{6}{0.5}{0}{pink};
+    \rect{6}{6}{0.5}{0}{pink};
+    \rect{5}{7}{0.5}{0}{pink};
+    \rect{5}{5}{0.5}{0}{pink};
+
+    % MIP 1
+    \rect{3}{4}{1}{4.5}{pink};
+    \rect{3}{3}{1}{4.5}{pink};
+    \rect{2}{3}{1}{4.5}{pink};
+    \rect{2}{2}{1}{4.5}{green};
+    \rect{3}{1}{1}{4.5}{green};
+    \rect{3}{2}{1}{4.5}{green};
+    \rect{4}{2}{1}{4.5}{green};
+
+    % MIP 2
+    \rect{2}{2}{2}{9}{pink};
+    \rect{2}{1}{2}{9}{green};
+    \rect{1}{2}{2}{9}{pink};
+    \rect{1}{1}{2}{9}{green};
+
+    \draw[black, thick, -stealth] (14,0,2) -- (16,0,2);
+
+    % Octree Level 0
+    \rect{2}{2}{2}{17}{white};
+    \rect{2}{1}{2}{17}{white};
+    \rect{1}{2}{2}{17}{white};
+    \rect{1}{1}{2}{17}{white};
+
+    % Octree Level 1
+    \rect{3}{4}{1}{17}{lightgray};
+    \rect{3}{3}{1}{17}{lightgray};
+    \rect{2}{3}{1}{17}{lightgray};
+    \rect{2}{2}{1}{17}{lightgray};
+    \rect{3}{1}{1}{17}{lightgray};
+    \rect{3}{2}{1}{17}{lightgray};
+    \rect{4}{2}{1}{17}{lightgray};
+
+    % Octree Level 2
+    \rect{5}{1}{0.5}{17}{gray};
+    \rect{5}{2}{0.5}{17}{gray};
+    \rect{5}{3}{0.5}{17}{gray};
+    \rect{5}{4}{0.5}{17}{gray};
+    \rect{4}{4}{0.5}{17}{gray};
+    \rect{3}{4}{0.5}{17}{gray};
+    \rect{6}{4}{0.5}{17}{gray};
+    \rect{7}{4}{0.5}{17}{gray};
+    \rect{5}{6}{0.5}{17}{gray};
+    \rect{4}{6}{0.5}{17}{gray};
+    \rect{6}{6}{0.5}{17}{gray};
+    \rect{5}{7}{0.5}{17}{gray};
+    \rect{5}{5}{0.5}{17}{gray};
+\end{tikzpicture}

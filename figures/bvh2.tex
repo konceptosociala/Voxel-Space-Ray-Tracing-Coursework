@@ -1,0 +1,24 @@
+\begin{tikzpicture}[
+    scale=0.8,
+    every node/.style={draw, rectangle, minimum width=1cm, minimum height=0.7cm},
+    level distance=1.6cm,
+    sibling distance=2.8cm,
+    edge from parent/.style={draw, thick},
+    font=\sffamily
+]
+
+\node {\textbf{A}}
+    child {
+        child {
+            node {}
+            child { node[draw=none] {$\Delta$} }
+            child { node[draw=none] {$\circ$} }
+        }
+        child[missing]{}
+        child {
+            node {\textbf{B}}
+            child { node[draw=none] {$\star$} }
+            child { node[draw=none] {\tikz\draw[fill=blue!20] (0,0,0) rectangle (0.6,0,0.4);} }
+        }
+    };
+\end{tikzpicture}

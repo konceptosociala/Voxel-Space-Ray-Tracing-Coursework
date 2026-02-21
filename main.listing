@@ -1,0 +1,36 @@
+    loop {
+        if t_max_x < t_max_y {
+            if t_max_x < t_max_z {
+                x += step_x;
+                if x == just_out_x {
+                    return None;
+                }
+                t_max_x += t_delta_x;
+            } else {
+                z += step_z;
+                if z == just_out_z {
+                    return None;
+                }
+                t_max_z += t_delta_z;
+            }
+        } else {
+            if t_max_y < t_max_z {
+                y += step_y;
+                if y == just_out_y {
+                    return None;
+                }
+                t_max_y += t_delta_y;
+            } else {
+                z += step_z;
+                if z == just_out_z {
+                    return None;
+                }
+                t_max_z += t_delta_z;
+            }
+        }
+
+        let result = load_voxel(x, y, z);
+        if result.is_some() {
+            return result;
+        }
+    }

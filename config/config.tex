@@ -12,30 +12,49 @@
 \usepackage{tikz}
 \usepackage{xcolor}
 \usepackage{float}
+\usepackage{tcolorbox}
+\usepackage{listings}
+\tcbuselibrary{listings}
+
+\newtcblisting{rustcode}{
+    listing only,
+    listing options={
+        language=Rust,
+        basicstyle=\ttfamily\small,
+        keywordstyle=\color{blue},
+        commentstyle=\color{gray},
+        stringstyle=\color{teal}
+    },
+    colback=black!5,
+    colframe=black!75
+}
+
+\input{config/listings-rust.sty}    % defines Rust language for listings
 
 % #### Times New Roman font ####
 % \usepackage{mathptmx}
 % \usepackage{tempora}
 
 \usetikzlibrary{calc}
+\usetikzlibrary{decorations.pathreplacing}
 
 \tikzset{
-  x={(1cm,0cm)},
-  y={(0.6cm,0.4cm)},
-  z={(0cm,1cm)}
+    x={(1cm,0cm)},
+    y={(0.6cm,0.4cm)},
+    z={(0cm,1cm)}
 }
 
 \titleformat{\chapter}
-  {\normalfont\Large\bfseries\centering}
-  {\thechapter}{1em}{}
+    {\normalfont\Large\bfseries\centering}
+    {\thechapter}{1em}{}
 
 \titleformat{\section}
-  {\normalfont\large\bfseries}
-  {\thesection}{1em}{}
+    {\normalfont\large\bfseries}
+    {\thesection}{1em}{}
 
 \titleformat{\subsection}
-  {\normalfont\large\bfseries}
-  {\thesubsection}{1em}{}
+    {\normalfont\large\bfseries}
+    {\thesubsection}{1em}{}
   
 \onehalfspacing
 \setlength{\parindent}{0cm}
