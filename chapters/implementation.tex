@@ -1,5 +1,202 @@
 \chapter{РЕАЛІЗАЦІЯ АЛГОРИТМУ ТРАСУВАННЯ ПРОМЕНІВ У ВОКСЕЛЬНОМУ ПРОСТОРІ}
 
-\section{Створення базових структур даних та матеріалів на базі двигуна Bevy мовою Rust}
+\section{Створення базових структур даних та матеріалів на базі рушія Bevy мовою Rust}
+
+Для реалізації алгоритму трасування було вибрано ігровий модульний рушій Bevy версії 0.15, написаний мовою програмування Rust для зручного визначення та реалізації графічного пайплайну, і шейдерну мову WGSL для реалізації основних процесів на GPU:
+\begin{itemize}[itemsep=0pt, topsep=0pt, label=$\diamond$]
+    \item базове трасування кольору орієнтованих воксельних об'єктів на сцені на поверхню обмежувальних коробок (\texttt{VoxelRayTracedMaterial});
+    \item відкладене трасування тіней та навколишнього перекриття за допомогою загального воксельного об'єму та G-буферів (\texttt{DeferredRayTraced\-PipelineOptimized}).
+\end{itemize}
+
+\subsection{Архітектура системи плагінів матеріалів}
+
+В даній роботи ми визначаємо систему воксельних матеріалів та пайплайнів в межах графу рендерингу рушія Bevy (Bevy Render Graph). Для цього ми створюємо певні плагіни та системи, які відповідають за різні аспекти рендерингу воксельних об'єктів та їх інтеграцію з основним графом рендерингу:
+\begin{enumerate}[itemsep=0pt, topsep=0pt]
+    \item \texttt{VoxelPlugin} --- основний плагін, який включає в себе інші підплагіни, які відповідають за різні аспекти графічного застосунку: 
+    \begin{enumerate}
+        \item \texttt{Image3dPlugin} --- завантаження двовимірних зрізів 3D моделі у відомих форматах зображення (JPG, PNG тощо) та вивантаження їх у 3D текстури на GPU;
+        \item \texttt{WorldVolumePlugin} --- ініціалізація та обробка (заповнення, очищення) загального воксельного об'єму;
+        \item \texttt{VoxelRayTracedMaterialPlugin} --- реєстрація та ініціалізація ос\-новного матеріалу для первинного воксельного трасування;
+        \item \texttt{RayTracedPostProcessingPlugin} --- плагін пост-процесингу, що\\включає в себе пайплайни відкладеного трасування та очищення\\G-буфера в кінці проходу рендеру \engl{render pass};
+        \begin{enumerate}
+            \item \texttt{RayTracedAttachmentsPlugin} --- менеджмент компонентів\\G-буфера для відкладеного рендерера.
+        \end{enumerate}
+    \end{enumerate}
+    \item \textit{Додаткові плагіни}: 
+    \begin{itemize}[itemsep=0pt, topsep=0pt, label=$\diamond$]
+        \item \texttt{MaterialPlugin<DebugVoxelRayTracedMaterial>} --- матеріал для візуального зневадження загального об'єму;
+        \item \texttt{ExtractResourcePlugin<DebugOptions>} --- плагін для перетворення ж зневаджувальної конфігурації рендерера для роботи в пайплайні.
+    \end{itemize}
+\end{enumerate}
+
+\subsection{Організація модульної структури проєкту}
+
+Проєкт організовано за принципом модульної архітектури з чіткою розділеністю відповідальності між компонентами. Кореневі модулі \texttt{lib.rs} та \texttt{main.rs} забезпечують точки входу для бібліотеки та виконавчого файлу відповідно.
+
+Основні модулі проєкту структуровані наступним чином:
+
+\begin{itemize}[itemsep=0pt, topsep=0pt, label=$\diamond$]
+    \item \texttt{materials} --- модуль для визначення матеріалів та їх поведінки:
+    \begin{itemize}
+        \item \texttt{voxel\_ray\_traced.rs} --- імплементація основного матеріалу\\ \texttt{VoxelRayTracedMaterial} для первинного трасування;
+        \item \texttt{debug/debug\_voxel\_ray\_traced.rs} --- допоміжний матеріал для візуалізації Voxel World Volume;
+    \end{itemize}
+    \item \texttt{post\_processing} --- модуль для пост-процесингу та відкладеного рендерингу:
+    \begin{itemize}
+        \item \texttt{ray\_traced\_attachments.rs} --- управління G-buffer текстурами та їх механіка оновлення;
+        \item \texttt{deferred\_ray\_traced.rs} --- реалізація вузла відкладеного рендерингу та світлового проходу;
+        \item \texttt{clear\_ray\_traced\_resources.rs} --- системи для очищення ресурсів між кадрами;
+    \end{itemize}
+    \item \texttt{utils} --- модуль утиліт:
+    \begin{itemize}
+        \item \texttt{image\_3d.rs} --- завантаження та обробка 3D текстур із 2D зрізів;
+        \item \texttt{expand.rs} --- макрос для створення розширень 3D зображень під час компіляції: ``.3d.png'', ``.3d.jpg'' тощо;
+        \item \texttt{world\_volume/} --- підмодуль для управління глобальним воксельним простором:
+        \begin{itemize}
+            \item \texttt{clear.rs} --- compute шейдер для очищення світового об'єму;
+            \item \texttt{fill.rs} --- compute шейдер для заповнення світового об'єму воксельними моделями;
+            \item \texttt{mip\_gen.rs} --- compute шейдер для генерації mipmap-рівнів ієрархічного трасування;
+        \end{itemize}
+    \end{itemize}
+\end{itemize}
+
+Така організація дозволяє легко розширювати функціональність проєкту, тестувати окремі компоненти та підтримувати чистоту кодової бази.
+
+\subsection{Реалізація структури VoxelRayTracedMaterial}
+
+Для забезпечення інтеграції воксельного трасування з графічним пайплайном Bevy було створено спеціалізацію трейту \texttt{Material}. Трейт \texttt{Material} в Bevy визначає інтерфейс для матеріалів, які можуть бути застосовані до 3D об'єктів, та дозволяє налаштовувати їх рендеринг на рівні GPU.
+
+Структура \texttt{VoxelRayTracedMaterial} визначена наступним чином:
+\newpage
+
+\begin{rustcode}
+#[derive(Asset, TypePath, AsBindGroup, Debug, Clone, Default)]
+pub struct VoxelRayTracedMaterial {
+    #[texture(0, dimension = "3d", sample_type = "u_int")]
+    pub voxels: Handle<Image>,
+
+    #[storage_texture(1, access = ReadWrite, image_format =
+R32Float, visibility(fragment))]
+    pub depth_texture: Option<Handle<Image>>,
+
+    #[storage_texture(2, access = WriteOnly, image_format =
+Rgba32Float, visibility(fragment))]
+    pub normal_texture: Option<Handle<Image>>,
+
+    pub alpha_mode: AlphaMode,
+}
+\end{rustcode}
+
+Дана структура використовує макрос \texttt{AsBindGroup}, який автоматично генерує код для зв'язування ресурсів з GPU. Кожне поле структури анотоване атрибутами, що визначають спосіб його передачі до шейдера:
+
+\begin{itemize}[itemsep=0pt, topsep=0pt, label=$\diamond$]
+    \item \texttt{voxels} --- 3D текстура з цілочисельним семплуванням, що містить воксельні дані моделі (binding 0);
+    \item \texttt{depth\_texture} --- мапа глибини G-буфера з можливістю читання та запису у фрагментному шейдері (binding 1);
+    \item \texttt{normal\_texture} --- мапа нормалей G-буфера з можливістю запису (binding 2);
+    \item \texttt{alpha\_mode} --- режим обробки прозорості для інтеграції з існуючим пайплайном рендерингу.
+\end{itemize}
+
+Імплементація трейту \texttt{Material} визначає спеціалізовану поведінку рендерингу:
+
+\begin{rustcode}
+impl Material for VoxelRayTracedMaterial { ... }
+\end{rustcode}
+
+Плагін \texttt{VoxelRayTracedMaterialPlugin} реєструє матеріал в системі Bevy та додає системи для автоматичного управління розмірами воксельних об'ємів.
+
+\subsection{Система компонентів для воксельних об'єктів}
+
+Для коректного відображення воксельних моделей необхідно автоматично адаптувати їх геометричне представлення до фактичних розмірів воксельного об'єму. Для цього введено компонент \texttt{VoxelVolumeSize}, який зберігає тривимірні розміри воксельного простору:
+
+\begin{rustcode}
+#[derive(Default, Component, Debug, Clone, ... )]
+pub struct VoxelVolumeSize(Extent3d);
+\end{rustcode}
+
+Компонент є обгорткою навколо структури \texttt{Extent3d}, яка містить ширину, висоту та глибину текстури у вокселях. Система \texttt{apply\_voxel\_volume\_size} автоматично визначає розміри воксельного об'єму з дескриптора 3D текстури та додає відповідний компонент до сутності ECS \engl{Entity}. А система \texttt{set\_voxel\_volume\_mesh} динамічно оновлює меш-геометрію відповідно до розмірів воксельного об'єму. Вона спрацьовує лише при додаванні компонента \texttt{VoxelVolumeSize} до сутності (перевірка \texttt{size.is\_added()}). Вона виконує наступні операції:
+
+\begin{enumerate}[itemsep=0pt, topsep=0pt]
+    \item Обчислює фізичні розміри об'єму у світових координатах, множачи\newline кількість вокселів на константу \texttt{VOXEL\_SIZE};
+    \item Створює нову кубічну геометрію (\texttt{Cuboid}) з визначеними розмірами;
+    \item Налаштовує обмежувальну коробку \texttt{Aabb} \engl{Axis-Aligned Bounding Box} для коректного frustum culling --- відсікання об'єктів поза полем зору камери.
+\end{enumerate}
+
+Така автоматизація забезпечує коректне масштабування proxy-геометрії для кожного воксельного об'єкта без необхідності ручного налаштування, що \newline спрощує додавання нових моделей до сцени.
+
+\subsection{Система World Volume}
+
+Системи ініціалізації та обробки світового об'єму визначена в плагіні \texttt{World\-VolumePlugin} і складається з таких компонентів:
+
+\begin{itemize}[itemsep=0pt, topsep=0pt, label=$\diamond$]
+    \item \texttt{ExtractResourcePlugin}-и для роботи з ресурсами світового об'єму в пайплайнах;
+    \item \texttt{FillWorldVolume} --- вузол і пайплайн для заповнення світового об'єма шляхом інверсивного мапування орієнтованих воксельних об'ємів у нього;
+    \item \texttt{ClearWorldVolume} --- вузол і пайплайн для очищення світового об'єму між кадрами;
+    \item \texttt{MipGenWorldVolume} --- генерація MIP рівнів для ієрархічного трасування та оптимізації вибору рівня деталізації під час рендерингу;
+    \item Функція екстракції даних у \texttt{finish} --- синхронізація колекції воксельних об'ємів між основним та рендер-світом з обчисленням інверсних матриць трансформації для переходу між координатними системами, що використаються пізніше в \texttt{FillWorldVolume}.
+\end{itemize}
+
+\subsection{Завантаження воксельних даних з формату 2D\\слайсів}
+
+Завантаження воксельних моделей відбуваються з файлів 2D зображень, експортованих з MagicaVoxel, що містять двовимірні зрізи воксельних об'ємів. Це відбувається асинхронно за допомогою користувацького \texttt{AssetLoader}, що завантажує зображення, ділить його на шари і зберігає у вигляді вбудованого типу \texttt{Image}. Ми обчислюємо кожен наступний піксель, що передається в 1D-масив, за допомогою наступної простої формули:
+\begin{equation*}
+    P(x,y,c,r) = \begin{pmatrix}
+        x + c \times w \\
+        y + r \times h
+    \end{pmatrix},
+\end{equation*}
+де $c$ та $r$ --- це поточні стовпець та рядок відповідно, $x$ та $y$ --- поточні координати плитки, а $w$ та $h$ --- ширина та висота однієї плитки.\cite{3dTexture}
+
 \section{Реалізація повного пайплайну відкладеного рендерингу для трасування у воксельному просторі}
+\subsection{Теоретичні засади відкладеного рендерингу}
+
+Відкладений рендеринг заснований на тому, що ми переносимо (відкладаємо) обчислення світла, як важке обчислення, на пізніший етап, коли замість вираховування світла (в нашому випадку трасуванням променів) для кожного об'єкту окремо, ми робимо це для всього екрану в цілому. Відкладене затінення включає два проходи: 
+\begin{enumerate}
+    \item на першому проході, який називається проходом геометрії, ми малюємо сцену один раз та отримуємо всі геометричні дані зі сцени, які ми зберігаємо G-буфері; в нашому випадку це глибина сцени та нормалі всіх об'єктів;
+    \item на другому проході ми використовуємо дані із G-буфера та додаткові GPU-ресурси (наприклад, World Volume), для рендерингу затінення та навколишнього перекриття як ефект пост-процесингу, оскільки рендеринг відбувається на весь екран.\cite{learnOGL}
+\end{enumerate}
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}{0.35\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.95\linewidth]{figures/gbuffer/albedo.jpeg}}
+        \caption{Альбедо (колір без тіней)}
+    \end{subfigure}
+    \hspace{0.02\textwidth}
+    \begin{subfigure}{0.35\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.95\linewidth]{figures/gbuffer/depth.jpeg}}
+        \caption{Глибина сцени}
+    \end{subfigure}
+    \hspace{0.02\textwidth}
+    \begin{subfigure}{0.35\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.95\linewidth]{figures/gbuffer/nrm.jpeg}}
+        \caption{Нормалі поверхні}
+    \end{subfigure}
+
+    \caption\centering{Проміжні мапи у G-буфері для невеликої сцени.}
+    \label{fig:gbuffer}
+\end{figure}
+
+Оскільки у нас буде відбуватися трасування променів у відкладеному шейдері, то з проміжних мап G-буфера ми створимо похідні мапи, характерні саме для трасування в екранному просторі \engl{Screen-Space Ray Tracing, SSRT} --- мапу початку і напрямку початкового променя:
+
+\begin{figure}[ht]
+    \centering
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.95\linewidth]{figures/gbuffer/ray_orig.jpeg}}
+        \caption{Початкові точки променя; колір позначає розташування у просторі $RGB \to XYZ$;}
+    \end{subfigure}
+    \hspace{0.02\textwidth}
+    \begin{subfigure}{0.4\textwidth}
+        \centering
+        \fbox{\includegraphics[width=0.95\linewidth]{figures/gbuffer/ray_d.jpeg}}
+        \caption{Напрямки променя; колір позначає напрямок у просторі, похідний від нормалей поверхні}
+    \end{subfigure}
+\end{figure}
+
+\subsection{Створення G-buffer attachments}
+
+Структура RayTracedAttachments для управління текстурами
+
 \section{Написання алгоритму трасування шейдерною мовою WGSL}
