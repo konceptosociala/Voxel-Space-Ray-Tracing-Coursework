@@ -1,7 +1,5 @@
-#[derive(Component, Clone, ExtractComponent)]
-pub struct RayTracedAttachments {
-    current_size: UVec2,
-    pub normals: Handle<Image>,
-    pub depth: Handle<Image>,
-    pub blue_noise: Handle<Image>,
-}
+return (
+    render(in.uv, color, normal, seed, depth) +
+    render(in.uv, color, normal,
+           vec2<f32>(seed.y + 127.1, seed.x + 311.7), depth)
+) * 0.5;
