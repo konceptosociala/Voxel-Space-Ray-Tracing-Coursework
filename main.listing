@@ -1,2 +1,7 @@
-#[derive(Default, Component, Debug, Clone, ... )]
-pub struct VoxelVolumeSize(Extent3d);
+#[derive(Component, Clone, ExtractComponent)]
+pub struct RayTracedAttachments {
+    current_size: UVec2,
+    pub normals: Handle<Image>,
+    pub depth: Handle<Image>,
+    pub blue_noise: Handle<Image>,
+}

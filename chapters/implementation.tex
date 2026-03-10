@@ -121,8 +121,6 @@ pub struct VoxelVolumeSize(Extent3d);
     \item Налаштовує обмежувальну коробку \texttt{Aabb} \engl{Axis-Aligned Bounding Box} для коректного frustum culling --- відсікання об'єктів поза полем зору камери.
 \end{enumerate}
 
-Така автоматизація забезпечує коректне масштабування proxy-геометрії для кожного воксельного об'єкта без необхідності ручного налаштування, що \newline спрощує додавання нових моделей до сцени.
-
 \subsection{Система World Volume}
 
 Системи ініціалізації та обробки світового об'єму визначена в плагіні \texttt{World\-VolumePlugin} і складається з таких компонентів:
@@ -191,12 +189,51 @@ pub struct VoxelVolumeSize(Extent3d);
     \begin{subfigure}{0.4\textwidth}
         \centering
         \fbox{\includegraphics[width=0.95\linewidth]{figures/gbuffer/ray_d.jpeg}}
-        \caption{Напрямки променя; колір позначає напрямок у просторі, похідний від нормалей поверхні}
+        \caption{Напрямки променя; колір позначає напрямок у просторі (є похідним від нормалей поверхні)}
     \end{subfigure}
 \end{figure}
 
 \subsection{Створення G-buffer attachments}
 
-Структура RayTracedAttachments для управління текстурами
+Для управління текстурами G-буфера та забезпечення їх автоматичного масштабування при зміні розміру вікна було створено компонент \texttt{RayTraced\-Attachments}. Цей компонент прикріплюється до камери та зберігає клю\-чі/ідентифікатори \engl{handle} всіх необхідних текстур для відкладеного рендерингу:
+
+\begin{rustcode}
+#[derive(Component, Clone, ExtractComponent)]
+pub struct RayTracedAttachments {
+    current_size: UVec2,
+    pub normals: Handle<Image>,
+    pub depth: Handle<Image>,
+    pub blue_noise: Handle<Image>,
+}
+\end{rustcode}
+
+Поля структури мають наступне призначення:
+
+\begin{itemize}[itemsep=0pt, topsep=0pt, label=$\diamond$]
+    \item \texttt{current\_size} --- поточний розмір viewport камери у пікселях для відстеження необхідності перестворення текстур;
+    \item \texttt{normals} --- ключ мапи нормалей, що заповнюється в проході геометрії;
+    \item \texttt{depth} --- ключ мапи глибини;
+    \item \texttt{blue\_noise} --- текстура блакитного шуму для покращення якості стохастичних ефектів, таких як ambient occlusion та м'які тіні. Вона завантажується з файлу, \textit{однак не використовується в процесі рендерингу, і \textbf{може} бути використана для візуального покращення в майбутньому}.
+\end{itemize}
+
+Система \texttt{add\_attachments} автоматично створює та прикріплює компонент \texttt{RayTracedAttachments} до камер з маркером \texttt{RayTracedPostProcessing}, які ще не мають цього компонента. Вона виконує наступні дії:
+
+\begin{enumerate}[itemsep=0pt, topsep=0pt]
+    \item Визначає фізичний розмір viewport камери або використовує значення за замовчуванням $1280 \times 720$;
+    \item Створює текстури глибини та нормалей з відповідними форматами та прапорцями використання (\texttt{STORAGE\_BINDING} для запису та читання з фрагментних шейдерів);
+    \item Прикріплює компонент \texttt{RayTracedAttachments} та \texttt{Jitter} до сутності камери;
+    \item Оновлює всі існуючі матеріали \texttt{VoxelRayTracedMaterial}, встановлюючи їм посилання на створені текстури глибини та нормалей.
+\end{enumerate}
+
+Система \texttt{resize\_attachments} відстежує зміни розміру вікна та динамічно перестворює текстури G-буфера. При виявленні зміни розміру viewport вона:
+
+\begin{enumerate}[itemsep=0pt, topsep=0pt]
+    \item Видаляє старі текстури з пам'яті GPU для уникнення витоку ресурсів;
+    \item Створює нові текстури з оновленими розмірами;
+    \item Оновлює ключі текстур в компоненті \texttt{RayTracedAttachments};
+    \item Проходить по всіх матеріалах \texttt{VoxelRayTracedMaterial} та замінює старі хендли текстур на нові.
+\end{enumerate}
+
+Система \texttt{update\_jitter} оновлює компонент \texttt{Jitter} для кожної камери, що містить його, генеруючи нові випадкові значення для кожного кадру. Це забезпечує варіативність стохастичних ефектів рей трейсингу і дозволяє використати вбудований метод темпорального згладжування \engl{Temporal anti-aliasing, TAA}.
 
 \section{Написання алгоритму трасування шейдерною мовою WGSL}
