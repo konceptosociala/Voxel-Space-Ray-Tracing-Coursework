@@ -28,12 +28,31 @@
     
     \chapter*{ДОДАТКИ}
     \addcontentsline{toc}{chapter}{ДОДАТКИ}
-
-    \newpage
     \begin{figure}[ht]
         \centering
-        \includegraphics[width=0.5\textwidth]{figures/cats.jpg}
-        \caption{Два котика}
-        \label{fig:kittens}
+        \begin{tabular}{|c|p{5cm}|c|}
+            \hline
+            \textbf{Коефіцієнт} & \textbf{Визначення} & \textbf{Значення} \\
+            \hline
+            \texttt{AO\_BIAS\_CANDIDATE} & Зміщення для навколишнього перекриття & 0.06 \\
+            \hline
+            \texttt{SHADOW\_BIAS\_CANDIDATE} & Зміщення для тіней та півтіней & 1.3 \\
+            \hline
+            \texttt{SKIP\_VOXELS\_CANDIDATE} & Кількість пропущених вокселів & 1 \\
+            \hline
+        \end{tabular}
+        \caption\centering{Оптимальні значення коефіцієнтів для трасувальника променів.}
+        \label{fig:coefs}
+    \end{figure}
+
+    \begin{figure}[ht]
+        \centering
+        \includegraphics[width=0.95\linewidth]{figures/screenshot.png}
+        \caption\centering{Скріншот графічного застосунку разом із\\увімкненим інтерфейсом зневадження\\англійською мовою.}
+        \label{fig:screenshot}
     \end{figure}
 \end{document}
+
+% pub const AO_BIAS_CANDIDATE: f32 = 0.06;
+% pub const : f32 = 1.3;
+% pub const : u32 = 1;
